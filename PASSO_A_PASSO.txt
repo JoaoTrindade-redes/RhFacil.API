@@ -1,0 +1,30 @@
+RH FÁCIL v0.3.7 - COMO GERAR
+
+1) Extraia esta pasta no Windows.
+2) Tenha Python 3.11 ou 3.12 64 bits instalado no PC que fará a compilação.
+3) Execute: 1_GERAR_EXECUTAVEL.bat
+4) Aguarde finalizar.
+5) O arquivo para o notebook será:
+   RH_Facil_v0.3.7_Portatil_Windows_x64.zip
+6) No notebook, EXTRAIA O ZIP INTEIRO.
+7) Abra RH Facil.exe.
+
+O notebook final NÃO precisa de Python e NÃO baixa componentes.
+
+Se der erro na compilação:
+Execute GERAR_COM_LOG.bat e envie build_log.txt.
+
+
+================ ATUALIZAÇÃO AUTOMÁTICA ================
+
+A partir da v0.3.7, o RH Fácil possui um atualizador separado.
+
+1. Gere a versão no Windows com 1_GERAR_EXECUTAVEL.bat.
+2. O arquivo RH_Facil_v0.3.7_Portatil_Windows_x64.zip será criado.
+3. No GitHub, crie uma Release com a tag v0.3.7 e anexe o ZIP.
+4. No RH Fácil, abra Configurações > Atualizações.
+5. Informe o repositório no formato dono/repositorio e salve.
+6. Ao abrir novamente o programa, ele consultará a última Release automaticamente.
+
+Para versões seguintes, publique sempre um novo ZIP com o padrão RH_Facil_vX.Y.Z_Portatil_Windows_x64.zip.
+Não inclua o banco de dados real dos usuários no pacote de atualização.
