@@ -10,7 +10,6 @@ import urllib.request
 import urllib.error
 import threading
 import tempfile
-import ctypes
 from tkinter import simpledialog
 from banco import configure_connection, checkpoint
 from armazenamento import safe_unlink
@@ -24,11 +23,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from PIL import Image
 
 import customtkinter as ctk
 
 APP_NAME = "RH Fácil"
-VERSION = "v0.3.7"
+VERSION = "v0.3.8"
 TRASH_RETENTION_DAYS = 30
 DEVELOPER = "Desenvolvido por João Trindade"
 
@@ -112,7 +112,12 @@ BORDER = "#b8c0c7"
 TEXT = "#202326"
 LABEL = "#25292d"
 MUTED = "#5d646a"
-SIDEBAR = "#2f3235"
+SIDEBAR = "#101827"
+SIDEBAR_HOVER = "#1a2535"
+SIDEBAR_ACTIVE = "#2563eb"
+SIDEBAR_BORDER = "#26344a"
+SIDEBAR_TEXT = "#f4f7fb"
+SIDEBAR_MUTED = "#9fb0c7"
 ACCENT = "#4e5358"
 ACCENT_HOVER = "#3f4448"
 GREEN = "#268653"
@@ -126,6 +131,14 @@ FONT_LABEL = ("Segoe UI", 14, "bold")
 FONT_INPUT = ("Segoe UI", 15)
 FONT_BODY = ("Segoe UI", 13)
 FONT_SMALL = ("Segoe UI", 11)
+
+# Tipografia global da navegação: mesma família, peso e proporção em todos os itens.
+FONT_NAV = ("Segoe UI", 15)
+FONT_NAV_SECTION = ("Segoe UI", 13, "bold")
+FONT_BRAND = ("Segoe UI", 28, "bold")
+FONT_FOOTER = ("Segoe UI", 11)
+NAV_ICON_SIZE = (24, 24)
+BRAND_ICON_SIZE = (42, 42)
 
 UF_NAMES = {
     "AC":"Acre","AL":"Alagoas","AP":"Amapá","AM":"Amazonas","BA":"Bahia","CE":"Ceará",
@@ -380,13 +393,19 @@ class RHFacil:
     STEPS = ["Dados pessoais","Documentos","Dependentes","Trabalho","Revisão"]
 
     def __init__(self):
-        self.enable_windows_dpi_awareness()
+        # CustomTkinter já gerencia HighDPI automaticamente no Windows.
+        # Não sobrescrevemos a política de DPI para evitar que notebooks com
+        # escala de 125%/150% exibam o menu menor que o esperado.
         init_db()
         self.purge_expired_trash()
         ctk.set_appearance_mode("light")
         self.root=ctk.CTk()
         self.root.title(f"{APP_NAME} · {VERSION}")
-        self.root.geometry("1280x780")
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        window_w = min(1280, max(1100, int(screen_w * 0.92)))
+        window_h = min(780, max(650, int(screen_h * 0.88)))
+        self.root.geometry(f"{window_w}x{window_h}")
         self.root.minsize(1000,650)
 
         self.vars={}
@@ -414,51 +433,97 @@ class RHFacil:
         self.show_dashboard()
         self.root.after(1400, self.check_updates_on_startup)
 
-    def enable_windows_dpi_awareness(self):
-        if os.name != "nt":
-            return
-        try:
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:
-            try:
-                ctypes.windll.user32.SetProcessDPIAware()
-            except Exception:
-                pass
-
     # -------- base layout --------
+    def _load_ui_icon(self, name, size):
+        """Carrega um ícone próprio do aplicativo e o adapta ao scaling do CTk."""
+        path = RESOURCE_ROOT / "assets" / "icons" / f"{name}.png"
+        if not path.exists():
+            return None
+        try:
+            with Image.open(path) as source:
+                image = source.convert("RGBA")
+            return ctk.CTkImage(light_image=image, dark_image=image, size=size)
+        except Exception:
+            return None
+
     def build_shell(self):
         self.root.grid_columnconfigure(1,weight=1)
         self.root.grid_rowconfigure(0,weight=1)
 
-        side=ctk.CTkFrame(self.root,width=205,corner_radius=0,fg_color=SIDEBAR)
+        side=ctk.CTkFrame(
+            self.root,width=245,corner_radius=0,fg_color=SIDEBAR,
+            border_width=0
+        )
         side.grid(row=0,column=0,sticky="nsew")
         side.grid_propagate(False)
-        side.grid_rowconfigure(8,weight=1)
+        side.grid_rowconfigure(7,weight=1)
 
-        ctk.CTkLabel(side,text="RH Fácil",text_color="white",
-                     font=("Segoe UI",24,"bold")).grid(row=0,column=0,padx=20,pady=(24,22),sticky="w")
+        self.nav_icons = {}
+        brand=ctk.CTkFrame(side,fg_color="transparent")
+        brand.grid(row=0,column=0,padx=18,pady=(22,18),sticky="ew")
+        brand.grid_columnconfigure(1,weight=1)
+
+        brand_icon=self._load_ui_icon("brand",BRAND_ICON_SIZE)
+        if brand_icon:
+            self.nav_icons["brand"]=brand_icon
+            ctk.CTkLabel(brand,text="",image=brand_icon).grid(
+                row=0,column=0,padx=(0,10),sticky="w"
+            )
+        ctk.CTkLabel(
+            brand,text="RH Fácil",text_color=SIDEBAR_TEXT,font=FONT_BRAND
+        ).grid(row=0,column=1,sticky="w")
+
+        ctk.CTkFrame(
+            side,height=1,fg_color=SIDEBAR_BORDER,corner_radius=0
+        ).grid(row=1,column=0,padx=18,pady=(0,14),sticky="ew")
 
         nav=[
-            ("Visão Geral",self.show_dashboard,"dashboard"),
-            ("+ Nova Admissão",self.show_new_admission,"new"),
-            ("ADMISSÕES SALVAS",self.show_employees,"employees"),
-            ("LIXEIRA",self.show_trash,"trash"),
-            ("FICHAS PDF",self.show_generated,"pdf"),
-            ("Configurações",self.show_settings,"settings"),
+            ("Visão Geral",self.show_dashboard,"dashboard","home"),
+            ("Nova Admissão",self.show_new_admission,"new","new"),
+            ("Admissões Salvas",self.show_employees,"employees","list"),
+            ("Lixeira",self.show_trash,"trash","trash"),
+            ("Fichas PDF",self.show_generated,"pdf","pdf"),
+            ("Configurações",self.show_settings,"settings","settings"),
         ]
-        for i,(t,cmd,key) in enumerate(nav,1):
+
+        for i,(label,cmd,key,icon_name) in enumerate(nav,2):
+            icon=self._load_ui_icon(icon_name,NAV_ICON_SIZE)
+            if icon:
+                self.nav_icons[key]=icon
+
             b=ctk.CTkButton(
-                side,text=t,command=cmd,height=40,fg_color="transparent",
-                hover_color="#3b3e41",text_color="#efefef",anchor="w",
-                font=("Segoe UI",13,"bold" if key in {"employees","trash"} else "normal")
+                side,
+                text=label,
+                command=cmd,
+                height=46,
+                corner_radius=8,
+                border_spacing=12,
+                fg_color="transparent",
+                hover_color=SIDEBAR_HOVER,
+                text_color=SIDEBAR_TEXT,
+                anchor="w",
+                font=FONT_NAV,
+                image=icon,
+                compound="left"
             )
-            b.grid(row=i,column=0,padx=10,pady=2,sticky="ew")
+            b.grid(row=i,column=0,padx=12,pady=3,sticky="ew")
             self.nav_buttons[key]=b
 
+        ctk.CTkFrame(
+            side,height=1,fg_color=SIDEBAR_BORDER,corner_radius=0
+        ).grid(row=8,column=0,padx=18,pady=(0,10),sticky="ew")
+
+        footer=ctk.CTkFrame(side,fg_color="transparent")
+        footer.grid(row=9,column=0,padx=18,pady=(0,18),sticky="sw")
+
         ctk.CTkLabel(
-            side,text=f"{DEVELOPER}\n{VERSION}",text_color="#b9bdc1",
-            justify="left",font=("Segoe UI",10)
-        ).grid(row=9,column=0,padx=16,pady=14,sticky="sw")
+            footer,text=DEVELOPER,text_color=SIDEBAR_MUTED,
+            justify="left",font=FONT_FOOTER
+        ).pack(anchor="w")
+        ctk.CTkLabel(
+            footer,text=VERSION,text_color="#60a5fa",
+            justify="left",font=("Segoe UI",11,"bold")
+        ).pack(anchor="w",pady=(2,0))
 
         self.content=ctk.CTkFrame(self.root,fg_color=BG,corner_radius=0)
         self.content.grid(row=0,column=1,sticky="nsew")
