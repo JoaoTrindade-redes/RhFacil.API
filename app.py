@@ -23,7 +23,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-from PIL import Image
 
 import customtkinter as ctk
 
@@ -434,18 +433,6 @@ class RHFacil:
         self.root.after(1400, self.check_updates_on_startup)
 
     # -------- base layout --------
-    def _load_ui_icon(self, name, size):
-        """Carrega um ícone próprio do aplicativo e o adapta ao scaling do CTk."""
-        path = RESOURCE_ROOT / "assets" / "icons" / f"{name}.png"
-        if not path.exists():
-            return None
-        try:
-            with Image.open(path) as source:
-                image = source.convert("RGBA")
-            return ctk.CTkImage(light_image=image, dark_image=image, size=size)
-        except Exception:
-            return None
-
     def build_shell(self):
         self.root.grid_columnconfigure(1,weight=1)
         self.root.grid_rowconfigure(0,weight=1)
@@ -458,17 +445,13 @@ class RHFacil:
         side.grid_propagate(False)
         side.grid_rowconfigure(7,weight=1)
 
-        self.nav_icons = {}
         brand=ctk.CTkFrame(side,fg_color="transparent")
         brand.grid(row=0,column=0,padx=18,pady=(22,18),sticky="ew")
         brand.grid_columnconfigure(1,weight=1)
 
-        brand_icon=self._load_ui_icon("brand",BRAND_ICON_SIZE)
-        if brand_icon:
-            self.nav_icons["brand"]=brand_icon
-            ctk.CTkLabel(brand,text="",image=brand_icon).grid(
-                row=0,column=0,padx=(0,10),sticky="w"
-            )
+        ctk.CTkLabel(
+            brand,text="●",text_color="#60a5fa",font=("Segoe UI",28,"bold")
+        ).grid(row=0,column=0,padx=(0,10),sticky="w")
         ctk.CTkLabel(
             brand,text="RH Fácil",text_color=SIDEBAR_TEXT,font=FONT_BRAND
         ).grid(row=0,column=1,sticky="w")
@@ -478,19 +461,15 @@ class RHFacil:
         ).grid(row=1,column=0,padx=18,pady=(0,14),sticky="ew")
 
         nav=[
-            ("Visão Geral",self.show_dashboard,"dashboard","home"),
-            ("Nova Admissão",self.show_new_admission,"new","new"),
-            ("Admissões Salvas",self.show_employees,"employees","list"),
-            ("Lixeira",self.show_trash,"trash","trash"),
-            ("Fichas PDF",self.show_generated,"pdf","pdf"),
-            ("Configurações",self.show_settings,"settings","settings"),
+            ("⌂   Visão Geral",self.show_dashboard,"dashboard"),
+            ("＋   Nova Admissão",self.show_new_admission,"new"),
+            ("☷   Admissões Salvas",self.show_employees,"employees"),
+            ("▱   Lixeira",self.show_trash,"trash"),
+            ("▤   Fichas PDF",self.show_generated,"pdf"),
+            ("⚙   Configurações",self.show_settings,"settings"),
         ]
 
-        for i,(label,cmd,key,icon_name) in enumerate(nav,2):
-            icon=self._load_ui_icon(icon_name,NAV_ICON_SIZE)
-            if icon:
-                self.nav_icons[key]=icon
-
+        for i,(label,cmd,key) in enumerate(nav,2):
             b=ctk.CTkButton(
                 side,
                 text=label,
@@ -502,9 +481,7 @@ class RHFacil:
                 hover_color=SIDEBAR_HOVER,
                 text_color=SIDEBAR_TEXT,
                 anchor="w",
-                font=FONT_NAV,
-                image=icon,
-                compound="left"
+                font=FONT_NAV
             )
             b.grid(row=i,column=0,padx=12,pady=3,sticky="ew")
             self.nav_buttons[key]=b
